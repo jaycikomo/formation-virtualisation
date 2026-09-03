@@ -1,0 +1,33 @@
+name: Mise a jour message resume
+
+on:
+  push:
+    paths:
+      - '.github/workflows/maj-resume.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Mettre en valeur le message final
+        shell: python
+        run: |
+          from pathlib import Path
+          p = Path('index.html')
+          s = p.read_text(encoding='utf-8')
+          old = "document.getElementById('status').innerHTML='<b>Résumé prêt.</b> Enregistrez-le en PDF puis envoyez-le aux deux adresses indiquées.'"
+          new = "document.getElementById('status').innerHTML='<div style=\"margin-top:12px;padding:16px 18px;border:2px solid #12855A;border-left:7px solid #E2680B;background:#EAF7F1;color:#11151B;font-size:16px;line-height:1.55\"><b style=\"font-size:20px\">Résumé prêt.</b><br>Enregistrez-le en <b>PDF</b> puis envoyez-le aux deux adresses suivantes :<br><br><b>jean-charles.cuomo@ac-aix-marseille.fr</b><br><b>yvan.capo@ac-aix-marseille.fr</b></div>'"
+          if old not in s:
+              raise SystemExit('Texte cible introuvable dans index.html')
+          p.write_text(s.replace(old, new, 1), encoding='utf-8')
+      - name: Enregistrer la modification
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add index.html
+          git commit -m "Mise en valeur du message Resume pret"
+          git push
