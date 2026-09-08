@@ -1,0 +1,34 @@
+name: Retirer objectif final redondant
+
+on:
+  push:
+    paths:
+      - '.github/workflows/remove-redundant-objective.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Retirer le bloc objectif final redondant
+        shell: python
+        run: |
+          from pathlib import Path
+          import re
+          p = Path('lab/capsules-approfondies.html')
+          s = p.read_text(encoding='utf-8')
+          pattern = re.compile(r'<section class="section"><div class="wrap"><div class="mission">.*?</section>\s*(?=<section class="final-stage" id="constructeur-lab">)', re.S)
+          new, n = pattern.subn('', s, count=1)
+          if n == 0:
+              raise SystemExit('Bloc redondant introuvable')
+          p.write_text(new, encoding='utf-8')
+      - name: Commit
+        run: |
+          git config user.name "jaycikomo"
+          git config user.email "47773376+jaycikomo@users.noreply.github.com"
+          git add lab/capsules-approfondies.html
+          git commit -m "Retirer le bloc objectif final redondant"
+          git push
