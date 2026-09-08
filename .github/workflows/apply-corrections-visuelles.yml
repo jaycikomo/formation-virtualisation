@@ -1,0 +1,58 @@
+name: Appliquer corrections visuelles
+
+on:
+  push:
+    paths:
+      - '.github/workflows/apply-corrections-visuelles.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  patch-page:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Modifier la page
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+
+          p = Path('lab/capsules-approfondies.html')
+          s = p.read_text(encoding='utf-8')
+
+          s = s.replace('avec ses élèves de Bac Pro CIEL', 'pour ses élèves de Bac Pro CIEL')
+          s = s.replace('avec ses élèves', 'pour ses élèves')
+
+          s = s.replace(
+              '.tag{font-size:10px;font-weight:900;padding:4px 7px;border-radius:999px;background:#eef1f4}.security{color:var(--danger);font-weight:900}',
+              '.tag{font-size:10px;font-weight:900;padding:4px 7px;border-radius:999px;background:#eef1f4;border:1px solid transparent}.tag.usecase{color:#1746a2;background:#eef4ff;border-color:#c8d8ff}.tag.security{color:var(--danger);background:#fff0ee;border-color:#edc2bd}.tag.practice-tag{color:#0d704a;background:#eaf7f1;border-color:#b9dfcf}.tag.validation-tag{color:#8a4a00;background:#fff5e9;border-color:#efc28f}'
+          )
+
+          s = s.replace(
+              '<div class="tags"><span class="tag">${m.track}</span><span class="tag security">SÉCURITÉ</span><span class="tag">PRATIQUE</span></div>',
+              '<div class="tags"><span class="tag">${m.track}</span><span class="tag usecase">CAS D\'USAGE</span><span class="tag security">SÉCURITÉ</span><span class="tag practice-tag">PRATIQUE</span><span class="tag validation-tag">VALIDATION</span></div>'
+          )
+
+          s = s.replace(
+              '.box.securitybox{border-left:6px solid var(--danger);background:#fff7f6}.box.practice{border-left:6px solid var(--green)}.box.use{border-left:6px solid var(--blue)}',
+              '.box.knowledge{border-left:6px solid var(--brown);background:#fbf8f5}.box.use{border-left:6px solid var(--blue);background:#f5f8ff}.box.securitybox{border-left:6px solid var(--danger);background:#fff7f6}.box.practice{border-left:6px solid var(--green);background:#f3faf6}.box.check{border-left:6px solid var(--orange);background:#fff8ef}'
+          )
+
+          s = s.replace(
+              '<section class="box"><h4>Je dois savoir</h4>${list(m.know)}</section>',
+              '<section class="box knowledge"><h4>Je dois savoir</h4>${list(m.know)}</section>',
+              1
+          )
+
+          p.write_text(s, encoding='utf-8')
+          PY
+      - name: Enregistrer les modifications
+        shell: bash
+        run: |
+          git config user.name "jaycikomo"
+          git config user.email "47773376+jaycikomo@users.noreply.github.com"
+          git add lab/capsules-approfondies.html
+          git diff --cached --quiet || git commit -m "Corriger pour ses eleves et equilibrer les reperes visuels"
+          git push
