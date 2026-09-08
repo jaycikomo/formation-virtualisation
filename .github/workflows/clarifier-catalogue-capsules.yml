@@ -1,5 +1,6 @@
 name: Clarifier catalogue capsules
 
+# déclenchement de la mise à jour du catalogue
 on:
   push:
     paths:
