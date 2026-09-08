@@ -13,7 +13,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Modifier la page
+      - name: Modifier le catalogue
         shell: bash
         run: |
           python3 - <<'PY'
@@ -22,29 +22,32 @@ jobs:
           p = Path('lab/capsules-approfondies.html')
           s = p.read_text(encoding='utf-8')
 
-          s = s.replace('avec ses élèves de Bac Pro CIEL', 'pour ses élèves de Bac Pro CIEL')
-          s = s.replace('avec ses élèves', 'pour ses élèves')
-
           s = s.replace(
-              '.tag{font-size:10px;font-weight:900;padding:4px 7px;border-radius:999px;background:#eef1f4}.security{color:var(--danger);font-weight:900}',
-              '.tag{font-size:10px;font-weight:900;padding:4px 7px;border-radius:999px;background:#eef1f4;border:1px solid transparent}.tag.usecase{color:#1746a2;background:#eef4ff;border-color:#c8d8ff}.tag.security{color:var(--danger);background:#fff0ee;border-color:#edc2bd}.tag.practice-tag{color:#0d704a;background:#eaf7f1;border-color:#b9dfcf}.tag.validation-tag{color:#8a4a00;background:#fff5e9;border-color:#efc28f}'
+              'Filtre par parcours ou par niveau. Clique sur une capsule pour afficher le contenu détaillé, le mini-lab, les points de sécurité et la preuve attendue.',
+              'Filtre par parcours. Chaque carte indique le domaine et les notions réellement abordées : installation, réseau, OVA/OVF, images Docker, sauvegarde, Active Directory, cloud, etc.'
           )
 
-          s = s.replace(
-              '<div class="tags"><span class="tag">${m.track}</span><span class="tag security">SÉCURITÉ</span><span class="tag">PRATIQUE</span></div>',
-              '<div class="tags"><span class="tag">${m.track}</span><span class="tag usecase">CAS D\'USAGE</span><span class="tag security">SÉCURITÉ</span><span class="tag practice-tag">PRATIQUE</span><span class="tag validation-tag">VALIDATION</span></div>'
-          )
+          start = s.find("function render(){cards.innerHTML='';")
+          end = s.find("}render();", start)
+          if start == -1 or end == -1:
+              raise SystemExit('fonction render introuvable')
+          end += len('}render();')
 
-          s = s.replace(
-              '.box.securitybox{border-left:6px solid var(--danger);background:#fff7f6}.box.practice{border-left:6px solid var(--green)}.box.use{border-left:6px solid var(--blue)}',
-              '.box.knowledge{border-left:6px solid var(--brown);background:#fbf8f5}.box.use{border-left:6px solid var(--blue);background:#f5f8ff}.box.securitybox{border-left:6px solid var(--danger);background:#fff7f6}.box.practice{border-left:6px solid var(--green);background:#f3faf6}.box.check{border-left:6px solid var(--orange);background:#fff8ef}'
-          )
+          newblock = r'''function displayId(m){const labels={S:'SOCLE',H:'POSTE LOCAL',D:'DOCKER',P:'PROXMOX',N:'RÉSEAU',A:'ACTIVE DIRECTORY',C:'CLOUD',PED:'PÉDAGOGIE'};const prefix=m.id.startsWith('PED')?'PED':m.id.charAt(0);const n=m.id.replace(prefix,'');return `${labels[prefix]||m.track} ${n}`}
+function topicTags(m){const map={
+S01:['SOCLE','BASES','HÔTE / INVITÉ'],S02:['SOCLE','TYPE 1 / TYPE 2','HYPERVISEURS'],S03:['SOCLE','VM / CONTENEUR / CLOUD'],S04:['SOCLE','ISO','OVF / OVA','DISQUES VIRTUELS'],S05:['SOCLE','SNAPSHOT','CLONE','TEMPLATE','SAUVEGARDE'],S06:['SOCLE','CPU / RAM','STOCKAGE'],
+H01:['POSTE LOCAL','CHOIX HYPERVISEUR','LICENCES'],H02:['POSTE LOCAL','INSTALLATION','VT-x / AMD-V'],H03:['POSTE LOCAL','CRÉATION VM','ISO','RÉSEAU'],H04:['POSTE LOCAL','SNAPSHOTS','CLONES'],H05:['POSTE LOCAL','OVF / OVA','EXPORT / IMPORT'],H06:['POSTE LOCAL','DÉPANNAGE'],
+D01:['DOCKER','IMAGE','CONTENEUR','REGISTRE'],D02:['DOCKER','DOCKER HUB','TAGS','DIGEST'],D03:['DOCKER','COUCHES','COPY-ON-WRITE'],D04:['DOCKER','DOCKERFILE','BUILD','CACHE'],D05:['DOCKER','SAVE / LOAD','EXPORT / IMPORT','HORS LIGNE'],D06:['DOCKER','VOLUMES','PERSISTANCE'],D07:['DOCKER','SAUVEGARDE','RESTAURATION VOLUME'],D08:['DOCKER','RÉSEAUX','PORTS','DNS INTERNE'],D09:['DOCKER','COMPOSE','SERVICES'],D10:['DOCKER','SÉCURISATION','LOGS','DIAGNOSTIC'],
+P01:['PROXMOX','ARCHITECTURE','KVM / LXC'],P02:['PROXMOX','INSTALLATION','MANAGEMENT'],P03:['PROXMOX','RÉSEAU','VMBR0','BRIDGE'],P04:['PROXMOX','STOCKAGE','ISO','DISQUES'],P05:['PROXMOX','VM / LXC'],P06:['PROXMOX','TEMPLATES','CLONES','CLOUD-INIT'],P07:['PROXMOX','SAUVEGARDE','RESTAURATION'],P08:['PROXMOX','UTILISATEURS','PERMISSIONS','FIREWALL'],P09:['PROXMOX','DIAGNOSTIC','STOCKAGE / RÉSEAU'],
+N01:['RÉSEAU','vNIC','SWITCH VIRTUEL','CHEMIN DU PAQUET'],N02:['RÉSEAU','NAT','BRIDGE','INTERNE / HOST-ONLY'],N03:['RÉSEAU','2 CARTES','LAN / WAN','ROUTAGE'],N04:['RÉSEAU','BRIDGE','SWITCH PHYSIQUE','NIC DÉDIÉE'],N05:['RÉSEAU','VLAN','TRUNK','SEGMENTATION'],N06:['RÉSEAU','DIAGNOSTIC','PANNE MYSTÈRE'],
+A01:['ACTIVE DIRECTORY','DNS','DOMAINE'],A02:['ACTIVE DIRECTORY','INSTALLATION AD DS','CIEL.LAN'],A03:['ACTIVE DIRECTORY','OU','UTILISATEURS','GROUPES'],A04:['ACTIVE DIRECTORY','JONCTION DOMAINE','CLIENT'],A05:['ACTIVE DIRECTORY','GPO','VALIDATION'],A06:['ACTIVE DIRECTORY','SNAPSHOT','REMISE À ZÉRO'],
+C01:['CLOUD','IAAS / PAAS / SAAS','RESPONSABILITÉS'],C02:['CLOUD','AWS EC2','AMI','INSTANCE'],C03:['CLOUD','VPC','SOUS-RÉSEAU','SECURITY GROUP'],C04:['CLOUD','IAM','DROITS'],C05:['CLOUD','COÛTS','LOGS','NETTOYAGE'],
+PED01:['PÉDAGOGIE','SITUATION ÉLÈVE','MISSION'],PED02:['PÉDAGOGIE','LAB REPRODUCTIBLE','NOMMAGE / IP'],PED03:['PÉDAGOGIE','PANNE CONTRÔLÉE','DIAGNOSTIC'],PED04:['PÉDAGOGIE','LAB FINAL','RESSOURCE POUR LES ÉLÈVES']
+};return (map[m.id]||[m.track]).map(x=>`<span class="tag">${x}</span>`).join('')}
+function render(){cards.innerHTML='';modules.filter(m=>active==='Tous'||m.track===active).forEach(m=>{const b=document.createElement('button');b.className='card';b.innerHTML=`<span class="id">${displayId(m)}</span><span class="level">NIVEAU ${m.lvl}</span><h3>${m.title}</h3><p>${m.know[0]}</p><div class="tags">${topicTags(m)}</div>`;b.onclick=()=>openModule(m);cards.appendChild(b)})}render();'''
 
-          s = s.replace(
-              '<section class="box"><h4>Je dois savoir</h4>${list(m.know)}</section>',
-              '<section class="box knowledge"><h4>Je dois savoir</h4>${list(m.know)}</section>',
-              1
-          )
+          s = s[:start] + newblock + s[end:]
+          s = s.replace("document.getElementById('mmeta').textContent=`${m.id} · ${m.track} · niveau ${m.lvl}`", "document.getElementById('mmeta').textContent=`${displayId(m)} · niveau ${m.lvl}`")
 
           p.write_text(s, encoding='utf-8')
           PY
@@ -54,5 +57,5 @@ jobs:
           git config user.name "jaycikomo"
           git config user.email "47773376+jaycikomo@users.noreply.github.com"
           git add lab/capsules-approfondies.html
-          git diff --cached --quiet || git commit -m "Corriger pour ses eleves et equilibrer les reperes visuels"
+          git diff --cached --quiet || git commit -m "Clarifier le catalogue par domaine et notions"
           git push
