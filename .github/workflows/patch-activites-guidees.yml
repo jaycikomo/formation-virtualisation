@@ -1,0 +1,54 @@
+name: Ajouter les activites guidees aux capsules
+
+on:
+  push:
+    paths:
+      - '.github/workflows/patch-activites-guidees.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Ameliorer validation et ajouter le bouton activite complete
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          p=Path('lab/capsules-approfondies.html')
+          s=p.read_text(encoding='utf-8')
+
+          # Validation S01 plus claire
+          s=s.replace("check:'Justifier en 30 secondes pourquoi virtualiser ce TP plutôt que l’installer directement.'",
+                      "check:'Vous savez choisir entre installation directe et machine virtuelle dans trois situations concrètes et justifier chaque choix avec au moins deux critères : isolation, reproductibilité, retour arrière, ressources ou accès au matériel.'")
+
+          # Style du renvoi vers l'activite longue
+          if '.box.fullactivity{' not in s:
+              css='''.box.fullactivity{grid-column:1/-1;border-left:6px solid var(--blue);background:#eef4ff}.fullactivity h4{color:#1746a2}.activity-cta{display:flex;align-items:center;justify-content:space-between;gap:14px;flex-wrap:wrap}.activity-cta p{margin:0;max-width:650px}.activity-cta a{display:inline-block;background:var(--blue);color:#fff;text-decoration:none;border-radius:10px;padding:11px 14px;font-weight:900}.activity-cta a:hover{filter:brightness(.92)}\n'''
+              s=s.replace('</style></head>',css+'</style></head>',1)
+
+          # Validation lisible pour toutes les capsules
+          marker="function list(arr){return '<ul>'+arr.map(x=>'<li>'+x+'</li>').join('')+'</ul>'}"
+          if 'function validationText(m)' not in s and marker in s:
+              helper="""function validationText(m){if(m.id==='S01')return 'Vous avez réussi si, pour trois situations différentes, vous savez décider s’il vaut mieux installer directement ou utiliser une VM et justifier chaque décision avec au moins deux critères concrets : isolation, retour arrière, reproductibilité, ressources ou accès au matériel.';return 'Vous avez réussi lorsque vous pouvez montrer concrètement que : '+m.check;}\n"""
+              s=s.replace(marker,helper+marker,1)
+
+          # Remplacer la zone de validation et ajouter le renvoi vers l'activite complete
+          old='<section class="box check"><h4>Validation / preuve attendue</h4><p>${m.check}</p></section><section class="box"><h4>Transposition élève</h4><p>À partir de cette capsule, créer une tâche courte : contexte professionnel, résultat à obtenir, preuve technique et procédure de retour à l\'état initial.</p></section>'
+          new='<section class="box check"><h4>Comment savoir que j\'ai réussi ?</h4><p>${validationText(m)}</p></section><section class="box"><h4>Transposition élève</h4><p>À partir de cette capsule, créer une tâche courte : contexte professionnel, résultat à obtenir, preuve technique et procédure de retour à l\'état initial.</p></section><section class="box fullactivity"><h4>Activité guidée complète</h4><div class="activity-cta"><p>La capsule donne l\'essentiel. Pour apprendre réellement la notion, passez maintenant à l\'activité détaillée : rappels « À savoir » au bon moment, manipulation pas à pas, résultats attendus, défi, diagnostic, validation et retour à l\'état initial.</p><a href="activite.html?id=${m.id}">Ouvrir l\'activité complète</a></div></section>'
+          if old in s:
+              s=s.replace(old,new,1)
+          elif 'activite.html?id=${m.id}' not in s:
+              raise SystemExit('Zone openModule non trouvee')
+
+          p.write_text(s,encoding='utf-8')
+          PY
+      - name: Commit
+        run: |
+          git config user.name "jaycikomo"
+          git config user.email "47773376+jaycikomo@users.noreply.github.com"
+          git add lab/capsules-approfondies.html
+          git diff --cached --quiet || git commit -m "Lier chaque capsule a une activite guidee complete"
+          git push
