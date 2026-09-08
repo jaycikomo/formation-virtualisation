@@ -1,0 +1,55 @@
+name: Focus VMware Docker
+
+on:
+  push:
+    paths:
+      - '.github/workflows/focus-vmware-docker.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Griser les parcours non actifs
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          p=Path('lab/capsules-approfondies.html')
+          s=p.read_text(encoding='utf-8')
+
+          css_marker='.card:hover{border-color:#8d98a5}'
+          css_add='''\n.card.disabled{opacity:.38;filter:grayscale(1);cursor:not-allowed;background:#e7eaee;border-color:#d6dbe1}.card.disabled:hover{border-color:#d6dbe1}.card.disabled .level{background:#dfe3e7}.card.disabled::after{content:"À VENIR";display:inline-block;margin-top:10px;font-size:10px;font-weight:900;letter-spacing:.08em;color:#6f7882}.filter.future{opacity:.38;filter:grayscale(1);cursor:not-allowed}.focus-note{margin:16px 0 0;padding:12px 14px;border-radius:12px;background:#fff8ef;border:1px solid #efc28f;color:#74420b;font-weight:700}\n'''
+          if '.card.disabled{' not in s:
+              s=s.replace(css_marker,css_marker+css_add)
+
+          s=s.replace('Chaque capsule associe savoir technique, cas d’utilisation, sécurité, manipulation, diagnostic et validation. On monte progressivement du niveau découverte au niveau autonomie, puis chaque participant fabrique un Lab réellement exploitable pour ses élèves.','Pour cette étape, nous nous concentrons volontairement sur deux parcours : VMware et Docker. Les autres capsules restent visibles comme feuille de route, mais elles sont grisées et seront développées plus tard.')
+
+          old='<section class="section"><div class="wrap"><h2>Catalogue des capsules</h2><p class="lead">Filtre par parcours. Chaque carte indique le domaine et les notions réellement abordées : installation, réseau, OVA/OVF, images Docker, VMware, conversion VMware ↔ VirtualBox, sauvegarde, Active Directory, cloud, etc.</p><div class="toolbar" id="filters"></div><div class="cards" id="cards"></div></div></section>'
+          new='<section class="section"><div class="wrap"><h2>Catalogue des capsules</h2><p class="lead">Pour avancer progressivement, seuls les parcours VMware et Docker sont actifs pour le moment. Les autres restent affichés en gris pour conserver la vision d’ensemble de la formation.</p><div class="focus-note">Étape actuelle : approfondir complètement VMware et Docker avant d’ouvrir les autres parcours.</div><div class="toolbar" id="filters"></div><div class="cards" id="cards"></div></div></section>'
+          if old in s:
+              s=s.replace(old,new)
+
+          old_filters="tracks.forEach(t=>{const b=document.createElement('button');b.className='filter'+(t==='Tous'?' active':'');b.textContent=t;b.onclick=()=>{active=t;document.querySelectorAll('.filter').forEach(x=>x.classList.toggle('active',x.textContent===t));render()};filters.appendChild(b)});"
+          new_filters="tracks.forEach(t=>{const b=document.createElement('button');const enabled=['Tous','VMware','Docker'].includes(t);b.className='filter'+(t==='Tous'?' active':'')+(enabled?'':' future');b.textContent=t;if(enabled){b.onclick=()=>{active=t;document.querySelectorAll('.filter').forEach(x=>x.classList.toggle('active',x.textContent===t));render()}}else{b.disabled=true;b.title='Parcours prévu pour une prochaine étape'}filters.appendChild(b)});"
+          if old_filters not in s:
+              raise SystemExit('Bloc filtres introuvable')
+          s=s.replace(old_filters,new_filters)
+
+          old_render="function render(){cards.innerHTML='';modules.filter(m=>active==='Tous'||m.track===active).forEach(m=>{const b=document.createElement('button');b.className='card';b.innerHTML=`<span class=\"id\">${displayId(m)}</span><span class=\"level\">NIVEAU ${m.lvl}</span><h3>${m.title}</h3><p>${m.know[0]}</p><div class=\"tags\">${topicTags(m)}</div>`;b.onclick=()=>openModule(m);cards.appendChild(b)})}render();"
+          new_render="function render(){cards.innerHTML='';modules.filter(m=>active==='Tous'||m.track===active).forEach(m=>{const enabled=['VMware','Docker'].includes(m.track);const b=document.createElement('button');b.className='card'+(enabled?'':' disabled');b.innerHTML=`<span class=\"id\">${displayId(m)}</span><span class=\"level\">NIVEAU ${m.lvl}</span><h3>${m.title}</h3><p>${m.know[0]}</p><div class=\"tags\">${topicTags(m)}</div>`;if(enabled){b.onclick=()=>openModule(m)}else{b.disabled=true;b.setAttribute('aria-disabled','true');b.title='Capsule prévue pour une prochaine étape'}cards.appendChild(b)})}render();"
+          if old_render not in s:
+              raise SystemExit('Bloc render introuvable')
+          s=s.replace(old_render,new_render)
+
+          p.write_text(s,encoding='utf-8')
+          PY
+      - name: Commit
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add lab/capsules-approfondies.html
+          git diff --cached --quiet || git commit -m "Concentrer le catalogue sur VMware et Docker"
+          git push
