@@ -1,0 +1,62 @@
+name: Correction pour ses eleves et surbrillances
+
+on:
+  push:
+    paths:
+      - '.github/workflows/correction-pour-eleves-surbrillance.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Corriger la page approfondie
+        shell: python
+        run: |
+          from pathlib import Path
+          p = Path('lab/capsules-approfondies.html')
+          s = p.read_text(encoding='utf-8')
+
+          # Formulation : la ressource est conçue POUR les élèves.
+          s = s.replace('avec ses élèves de Bac Pro CIEL', 'pour ses élèves de Bac Pro CIEL')
+          s = s.replace('avec ses élèves', 'pour ses élèves')
+
+          # Équilibrer les repères visuels des cartes du catalogue.
+          old_css = '.tag{font-size:10px;font-weight:900;padding:4px 7px;border-radius:999px;background:#eef1f4}.security{color:var(--danger);font-weight:900}'
+          new_css = '''.tag{font-size:10px;font-weight:900;padding:4px 7px;border-radius:999px;background:#eef1f4;border:1px solid transparent}
+.tag.usecase{color:#1746a2;background:#eef4ff;border-color:#c8d8ff}
+.tag.security{color:var(--danger);background:#fff0ee;border-color:#edc2bd}
+.tag.practice-tag{color:#0d704a;background:#eaf7f1;border-color:#b9dfcf}
+.tag.validation-tag{color:#8a4a00;background:#fff5e9;border-color:#efc28f}'''
+          if old_css in s:
+              s = s.replace(old_css, new_css, 1)
+
+          old_render = '<div class="tags"><span class="tag">${m.track}</span><span class="tag security">SÉCURITÉ</span><span class="tag">PRATIQUE</span></div>'
+          new_render = '<div class="tags"><span class="tag">${m.track}</span><span class="tag usecase">CAS D\'USAGE</span><span class="tag security">SÉCURITÉ</span><span class="tag practice-tag">PRATIQUE</span><span class="tag validation-tag">VALIDATION</span></div>'
+          if old_render in s:
+              s = s.replace(old_render, new_render, 1)
+
+          # Dans la capsule ouverte, chaque grande partie reçoit un repère visuel,
+          # afin que la sécurité ne soit pas la seule zone mise en avant.
+          old_boxes = '.box.securitybox{border-left:6px solid var(--danger);background:#fff7f6}.box.practice{border-left:6px solid var(--green)}.box.use{border-left:6px solid var(--blue)}'
+          new_boxes = '''.box.knowledge{border-left:6px solid var(--brown);background:#fbf8f5}
+.box.use{border-left:6px solid var(--blue);background:#f5f8ff}
+.box.securitybox{border-left:6px solid var(--danger);background:#fff7f6}
+.box.practice{border-left:6px solid var(--green);background:#f3faf6}
+.box.check{border-left:6px solid var(--orange);background:#fff8ef}'''
+          if old_boxes in s:
+              s = s.replace(old_boxes, new_boxes, 1)
+
+          s = s.replace('<section class="box"><h4>Je dois savoir</h4>${list(m.know)}</section>', '<section class="box knowledge"><h4>Je dois savoir</h4>${list(m.know)}</section>', 1)
+
+          p.write_text(s, encoding='utf-8')
+      - name: Commit
+        run: |
+          git config user.name "jaycikomo"
+          git config user.email "47773376+jaycikomo@users.noreply.github.com"
+          git add lab/capsules-approfondies.html
+          git diff --cached --quiet || git commit -m "Corriger pour ses eleves et equilibrer les surbrillances"
+          git push
